@@ -1,0 +1,13 @@
+{
+    "apiKey": "高德申请的key",
+    "city": "北京",
+    "showCity": true,
+    "showTemp": true,
+    "showWeatherDesc": true,
+    "fontSize": 10,
+    "textColor": "#ffffff",
+    "strokeColor": "#000000",
+    "bgType": "image",
+    "bgImage": "bg_default.png",
+    "bgColor": "#2c3e50"
+}

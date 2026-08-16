@@ -1,0 +1,103 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+.env  # 注意：如果 .env 是项目必需的配置模板，则不应忽略它，但通常包含密钥，建议忽略
+
+# IDE settings (如果团队统一使用某种IDE，可以考虑不忽略，但一般建议个人配置各自管理)
+.idea/
+.vscode/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+test-reports/
+
+# Jupyter Notebooks (如果不想提交计算输出的结果)
+.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# Pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# Sphinx documentation
+docs/_build/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Alembic (数据库迁移文件通常需要提交，但如果包含敏感数据则忽略)
+alembic/*.pyc
+alembic/versions/*.pyc
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# OS generated files
+.DS_Store
+Thumbs.db

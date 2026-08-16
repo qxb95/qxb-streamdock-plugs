@@ -1,0 +1,29 @@
+{
+  "Name": "高德天气",
+  "Description": "实时天气显示，支持自定义城市",
+  "Author": "Your Name",
+  "Version": "1.0.0",
+  "Category": "工具",
+  "CategoryIcon": "",
+  "CodePath": "WeatherPlugin.exe",
+  "Actions": [
+    {
+      "Name": "显示天气",
+      "UUID": "com.qxb.weather.weather",
+      "Icon": "",
+      "Tooltip": "点击刷新天气",
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        {
+          "Image": "",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    }
+  ],
+  "SDKVersion": 2,
+  "OS": [
+    { "Platform": "mac", "MinimumVersion": "10.11" },
+    { "Platform": "windows", "MinimumVersion": "10" }
+  ]
+}

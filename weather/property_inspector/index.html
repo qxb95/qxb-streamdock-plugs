@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>天气插件设置</title>
+    <style>
+        body {
+            background: #2c2c2c;
+            color: #eee;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            font-size: 14px;
+        }
+        .setting-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+            color: #ccc;
+        }
+        input[type="text"],
+        select,
+        input[type="color"] {
+            width: 90%;
+            padding: 6px 8px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="color"] {
+            height: 36px;
+            padding: 2px;
+            cursor: pointer;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            color: #ddd;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 6px;
+            accent-color: #007aff;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 18px;
+            background: #007aff;
+            border: none;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005bbf;
+        }
+        button.test-btn {
+            background: #28a745;
+        }
+        button.test-btn:hover {
+            background: #1e7e34;
+        }
+        .hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 6px;
+        }
+        #debug-output {
+            margin-top: 12px;
+            padding: 8px;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #0f0;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: none;
+        }
+        .highlight {
+            background: #3a3a3a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ffa;
+        }
+        #testResult {
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .success { color: #5cb85c; }
+        .error { color: #d9534f; }
+        .warning-msg { color: #f0ad4e; }
+    </style>
+</head>
+<body>
+    <h3>🌤 天气插件设置</h3>
+
+    <div class="hint" style="margin-bottom:12px; background:#3a3a3a; padding:6px; border-radius:4px;">
+        💡 配置保存于 <span class="highlight">config.json</span>（与插件 exe 同级）
+    </div>
+
+    <!-- API Key -->
+    <div class="setting-group">
+        <label for="apiKeyInput">高德 API Key（可选）</label>
+        <input type="text" id="apiKeyInput" placeholder="不填则保留原 Key" />
+        <div class="hint">🔑 从 <a href="https://lbs.amap.com/" target="_blank" style="color:#007aff;">高德开放平台</a> 获取</div>
+        <div class="btn-group">
+            <button id="testKeyBtn" class="test-btn">🔍 测试 Key</button>
+            <span id="testResult"></span>
+        </div>
+    </div>
+
+    <!-- 城市 -->
+    <div class="setting-group">
+        <label for="cityInput">城市</label>
+        <input type="text" id="cityInput" placeholder="例如：北京、上海" />
+    </div>
+
+    <!-- 显示内容 -->
+    <div class="setting-group">
+        <label>显示内容</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="showCity" checked /> 城市</label>
+            <label><input type="checkbox" id="showTemp" checked /> 温度</label>
+            <label><input type="checkbox" id="showWeatherDesc" checked /> 天气描述</label>
+        </div>
+    </div>
+
+    <!-- 字体大小 -->
+    <div class="setting-group">
+        <label for="fontSizeSelect">文字大小</label>
+        <select id="fontSizeSelect">
+            <option value="8">小</option>
+            <option value="10" selected>中</option>
+            <option value="12">大</option>
+        </select>
+    </div>
+
+    <!-- 字体颜色 -->
+    <div class="setting-group">
+        <label for="textColorPicker">字体颜色</label>
+        <input type="color" id="textColorPicker" value="#ffffff" />
+        <div class="hint">🎨 文字颜色</div>
+    </div>
+
+    <!-- 描边颜色（新增） -->
+    <div class="setting-group">
+        <label for="strokeColorPicker">描边颜色</label>
+        <input type="color" id="strokeColorPicker" value="#000000" />
+        <div class="hint">🎨 文字描边（设为与字体颜色相同可消除边框）</div>
+    </div>
+
+    <!-- 背景设置 -->
+    <div class="setting-group">
+        <label>背景设置</label>
+        <div style="margin-bottom:8px;">
+            <label style="display:inline-block; margin-right:16px; font-weight:normal;">
+                <input type="radio" name="bgType" value="image" checked /> 预设图片
+            </label>
+            <label style="display:inline-block; font-weight:normal;">
+                <input type="radio" name="bgType" value="color" /> 自定义颜色
+            </label>
+        </div>
+        <div id="bgImageGroup">
+            <label for="bgImageSelect">选择背景图片</label>
+            <select id="bgImageSelect">
+                <option value="bg_default.png">默认</option>
+                <option value="bg_dark.png">深色</option>
+                <option value="bg_light.png">浅色</option>
+            </select>
+            <div class="hint">📁 请将图片文件放入插件目录的 resources/ 文件夹中</div>
+        </div>
+        <div id="bgColorGroup" style="display:none;">
+            <label for="bgColorPicker">选择颜色</label>
+            <input type="color" id="bgColorPicker" value="#2c3e50" />
+        </div>
+    </div>
+
+    <button id="saveBtn">💾 保存配置</button>
+    <div class="hint" style="margin-top:12px;">保存后插件会自动刷新天气显示</div>
+
+    <div id="debug-output"></div>
+
+    <script>
+        let websocket = null;
+        let context = null;
+        const debugEl = document.getElementById('debug-output');
+
+        function log(msg) {
+            console.log(msg);
+            debugEl.style.display = 'block';
+            debugEl.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n';
+            debugEl.scrollTop = debugEl.scrollHeight;
+        }
+
+        // DOM 元素
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const cityInput = document.getElementById('cityInput');
+        const showCity = document.getElementById('showCity');
+        const showTemp = document.getElementById('showTemp');
+        const showWeatherDesc = document.getElementById('showWeatherDesc');
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        const textColorPicker = document.getElementById('textColorPicker');
+        const strokeColorPicker = document.getElementById('strokeColorPicker');  // 新增
+        const bgTypeRadios = document.querySelectorAll('input[name="bgType"]');
+        const bgImageGroup = document.getElementById('bgImageGroup');
+        const bgColorGroup = document.getElementById('bgColorGroup');
+        const bgImageSelect = document.getElementById('bgImageSelect');
+        const bgColorPicker = document.getElementById('bgColorPicker');
+        const saveBtn = document.getElementById('saveBtn');
+        const testKeyBtn = document.getElementById('testKeyBtn');
+        const testResult = document.getElementById('testResult');
+
+        // 切换背景类型
+        bgTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'image') {
+                    bgImageGroup.style.display = 'block';
+                    bgColorGroup.style.display = 'none';
+                } else {
+                    bgImageGroup.style.display = 'none';
+                    bgColorGroup.style.display = 'block';
+                }
+            });
+        });
+
+        // 隐藏 Key 显示
+        function maskApiKey(key) {
+            if (!key || key.length <= 8) return key || '';
+            const first = key.slice(0, 4);
+            const last = key.slice(-4);
+            return first + '••••••••••' + last;
+        }
+
+        // 应用配置到表单
+        function applySettings(settings) {
+            log('应用设置: ' + JSON.stringify(settings));
+            if (settings.apiKey) {
+                apiKeyInput.value = maskApiKey(settings.apiKey);
+                apiKeyInput.dataset.original = settings.apiKey;
+            } else {
+                apiKeyInput.value = '';
+                delete apiKeyInput.dataset.original;
+            }
+            if (settings.city) {
+                cityInput.value = settings.city;
+            }
+            showCity.checked = settings.showCity !== undefined ? settings.showCity : true;
+            showTemp.checked = settings.showTemp !== undefined ? settings.showTemp : true;
+            showWeatherDesc.checked = settings.showWeatherDesc !== undefined ? settings.showWeatherDesc : true;
+            fontSizeSelect.value = settings.fontSize || '10';
+            textColorPicker.value = settings.textColor || '#ffffff';
+            strokeColorPicker.value = settings.strokeColor || '#000000';  // 新增
+            const bgType = settings.bgType || 'image';
+            document.querySelector(`input[name="bgType"][value="${bgType}"]`).checked = true;
+            if (bgType === 'image') {
+                bgImageGroup.style.display = 'block';
+                bgColorGroup.style.display = 'none';
+                if (settings.bgImage) {
+                    bgImageSelect.value = settings.bgImage;
+                }
+            } else {
+                bgImageGroup.style.display = 'none';
+                bgColorGroup.style.display = 'block';
+                if (settings.bgColor) {
+                    bgColorPicker.value = settings.bgColor;
+                }
+            }
+        }
+
+        // 获取原始 Key
+        function getOriginalApiKey() {
+            if (apiKeyInput.dataset.original) {
+                return apiKeyInput.dataset.original;
+            }
+            return apiKeyInput.value;
+        }
+
+        // 获取表单配置（Key 为空时不包含 apiKey 字段）
+        function getFormSettings() {
+            const bgType = document.querySelector('input[name="bgType"]:checked').value;
+            const settings = {
+                city: cityInput.value.trim() || '北京',
+                showCity: showCity.checked,
+                showTemp: showTemp.checked,
+                showWeatherDesc: showWeatherDesc.checked,
+                fontSize: parseInt(fontSizeSelect.value, 10),
+                textColor: textColorPicker.value,
+                strokeColor: strokeColorPicker.value,  // 新增
+                bgType: bgType,
+            };
+            if (bgType === 'image') {
+                settings.bgImage = bgImageSelect.value;
+            } else {
+                settings.bgColor = bgColorPicker.value;
+            }
+            const apiKey = getOriginalApiKey();
+            if (apiKey && apiKey.trim() !== '') {
+                settings.apiKey = apiKey.trim();
+            }
+            return settings;
+        }
+
+        // StreamDock 初始化
+        window.connectElgatoStreamDeckSocket = function(port, uuid, event, app, info) {
+            log('连接 WebSocket, 端口: ' + port);
+            context = uuid;
+            websocket = new WebSocket("ws://127.0.0.1:" + port);
+
+            websocket.onopen = function() {
+                log('WebSocket 已打开，请求当前设置...');
+                setTimeout(() => {
+                    websocket.send(JSON.stringify({
+                        event: "getSettings",
+                        context: context
+                    }));
+                }, 300);
+            };
+
+            websocket.onmessage = function(msg) {
+                const data = JSON.parse(msg.data);
+                log('收到消息: ' + msg.data);
+
+                if (data.event === "didReceiveSettings") {
+                    const settings = data.payload.settings || {};
+                    log('应用存储设置: ' + JSON.stringify(settings));
+                    applySettings(settings);
+                }
+
+                if (data.event === "testKeyResult") {
+                    const result = data.payload || {};
+                    if (result.success) {
+                        testResult.innerHTML = '✅ 有效！天气：' + (result.weather || '');
+                        testResult.className = 'success';
+                    } else {
+                        testResult.innerHTML = '❌ 无效：' + (result.error || '未知错误');
+                        testResult.className = 'error';
+                    }
+                }
+            };
+
+            websocket.onerror = function(err) {
+                log('WebSocket 错误: ' + err);
+            };
+
+            websocket.onclose = function() {
+                log('WebSocket 已关闭');
+            };
+        };
+
+        // 输入框变化更新原始值
+        apiKeyInput.addEventListener('input', function() {
+            const val = this.value;
+            if (val && val.length > 8 && !val.includes('•')) {
+                this.dataset.original = val;
+            } else if (val === '') {
+                delete this.dataset.original;
+            }
+        });
+
+        // 保存
+        saveBtn.addEventListener('click', function() {
+            log('保存按钮被点击');
+            const settings = getFormSettings();
+            if (!settings.apiKey) {
+                if (!confirm('⚠️ API Key 为空，将保留 config.json 中的原有 Key。确定继续保存其他设置吗？')) {
+                    return;
+                }
+            }
+            log('准备保存配置: ' + JSON.stringify(settings));
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    event: "setSettings",
+                    context: context,
+                    payload: settings
+                }));
+                log('setSettings 已发送');
+            } else {
+                log('WebSocket 未连接！');
+                alert('未连接到 StreamDock，请确保插件正在运行');
+            }
+        });
+
+        // 测试 Key
+        testKeyBtn.addEventListener('click', function() {
+            const apiKey = getOriginalApiKey();
+            if (!apiKey) {
+                testResult.textContent = '⚠️ 请先输入 API Key';
+                testResult.className = 'warning-msg';
+                return;
+            }
+            testResult.textContent = '测试中...';
+            testResult.className = '';
+            log('测试 Key: ' + apiKey.slice(0,4) + '****' + apiKey.slice(-4));
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    event: "sendToPlugin",
+                    context: context,
+                    payload: { action: "testKey", apiKey: apiKey }
+                }));
+            } else {
+                testResult.textContent = '❌ WebSocket 未连接';
+                testResult.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>
