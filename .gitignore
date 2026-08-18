@@ -1,0 +1,166 @@
+# Byte-compiled  optimized  DLL files
+__pycache__
+.py[cod]
+$py.class
+
+# Virtual Environment
+venv
+env
+ENV
+.venv
+.env  # 注意：如果 .env 是项目必需的配置模板，则不应忽略它，但通常包含密钥，建议忽略
+
+# IDE settings (如果团队统一使用某种IDE，可以考虑不忽略，但一般建议个人配置各自管理)
+.idea
+.vscode
+.iml
+.vscode
+.swp
+.swo
+
+# Distribution  packaging
+.Python
+build
+develop-eggs
+dist
+downloads
+eggs
+.eggs
+lib
+lib64
+parts
+sdist
+var
+wheels
+.egg-info
+.installed.cfg
+.egg
+
+# PyInstaller
+.manifest
+.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test  coverage reports
+htmlcov
+.tox
+.coverage
+.coverage.
+.cache
+nosetests.xml
+coverage.xml
+.cover
+.py,cover
+.hypothesis
+.pytest_cache
+test-reports
+
+# Jupyter Notebooks (如果不想提交计算输出的结果)
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# Sphinx documentation
+docs_build
+
+# Django
+.log
+local_settings.py
+db.sqlite3
+media
+
+# Flask
+instance
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Alembic (数据库迁移文件通常需要提交，但如果包含敏感数据则忽略)
+alembic.pyc
+alembicversions.pyc
+
+# mypy
+.mypy_cache
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre
+
+# OS generated files
+.DS_Store
+Thumbs.db
+# 环境变量文件 (最常见的敏感信息存储位置)
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example          # 但允许提交不含密钥的模板文件[reference:1][reference:2]
+
+# 通用密钥/凭证文件
+*.secret
+*.token
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.ssh/
+
+# 特定名称的凭证文件
+secrets/
+private/
+personal/
+credentials.json
+secrets.json
+service-account.json
+.credentials.json
+.git-credentials        # Git 自身存储的凭证
+creds.txt
+sqlcreds.txt
+
+# API 密钥与 Token 文件
+api_keys.py
+tokens.py
+auth_credentials.py
+token.txt
+access_token*
+slack_*.py
+webhook_*.py
+*_credentials.json
+*_secret.json
+
+# HTTP 请求环境变量 (可能包含 Authorization 头)
+http-client.env.json
+*.http.env.json
+.env.http
+
+# ============================================
+# 其他可能包含个人信息的文件
+# ============================================
+
+# p10k (zsh 主题) 配置文件可能包含主机名、用户名等
+.p10k.zsh
+
+# AI 会话产物可能包含系统路径等
+thoughts/
+
+# IDE 工作区文件 (可能包含本地路径、账号ID等)[reference:7]
+.idea/workspace.xml
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.vscode/
