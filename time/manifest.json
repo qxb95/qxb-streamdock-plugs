@@ -1,0 +1,28 @@
+{
+  "Name": "时钟插件",
+  "Description": "模拟指针表盘时钟",
+  "Author": "qxb",
+  "Version": "1.0.0",
+  "Category": "工具",
+  "CodePath": "com.qxb.clock.sdPlugin.exe",
+  "Actions": [
+    {
+      "Name": "时钟",
+      "UUID": "com.qxb.clock.time",
+      "Icon": "",
+      "Tooltip": "显示模拟表盘时钟",
+      "PropertyInspectorPath": "",
+      "States": [
+        {
+          "Image": "",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    }
+  ],
+  "SDKVersion": 2,
+  "OS": [
+    { "Platform": "mac", "MinimumVersion": "10.11" },
+    { "Platform": "windows", "MinimumVersion": "10" }
+  ]
+}

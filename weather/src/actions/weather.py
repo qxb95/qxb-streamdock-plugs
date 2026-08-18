@@ -3,6 +3,7 @@ import os
 import json
 import base64
 import io
+import time
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from src.core.action import Action
@@ -30,6 +31,9 @@ class Weather(Action):
         "雷电": "\ue604",
         "未知": "\ue60c",
     }
+
+    # 限流时间阈值（秒），在此时间内重复的自动刷新将被跳过
+    REFRESH_THRESHOLD = 30   # 可调整为 120、300 等
 
     def __init__(self, action, context, settings, plugin):
         super().__init__(action, context, settings, plugin)
@@ -61,9 +65,11 @@ class Weather(Action):
         self.plugin.timer.set_interval(
             f'weather_update_{context}',
             1800000,
-            self.update_weather
+            self.update_weather   # 定时器触发为非强制刷新
         )
-        self.update_weather()
+
+        # 首次加载时立即刷新（不受限流影响，因为 last_update 为 0）
+        self.update_weather(force=False)
         Logger.info(f"[Weather] 初始化完成，城市: {self.city}")
 
     # ---------- 配置相关 ----------
@@ -124,7 +130,6 @@ class Weather(Action):
                     existing = json.load(f)
             except Exception as e:
                 Logger.warning(f"[Weather] 读取现有 config.json 失败: {e}，将创建新文件")
-        # 合并更新（保留未传入的字段）
         existing.update(config)
         try:
             with open(config_path, 'w', encoding='utf-8') as f:
@@ -136,7 +141,6 @@ class Weather(Action):
             return False
 
     def _sync_config_to_streamdock(self):
-        """将当前配置通过 setSettings 保存到 StreamDock 存储，供前端读取"""
         config = {
             "apiKey": self.api_key,
             "city": self.city,
@@ -159,23 +163,17 @@ class Weather(Action):
         Logger.info("[Weather] 按钮消失")
 
     def on_key_down(self, payload: dict):
-        Logger.info("[Weather] 手动刷新")
-        self.update_weather()
+        Logger.info("[Weather] 手动刷新（按键触发）")
+        self.update_weather(force=True)   # 强制刷新，忽略限流
 
     def on_did_receive_settings(self, settings: dict):
-        """当用户通过属性检查器保存设置时触发"""
         Logger.info(f"[Weather] 收到新设置: {settings}")
-        # 保存到 config.json
         self._save_config(settings)
-        # 应用配置
         self._apply_config(settings)
-        # 同步到 StreamDock 存储（确保前端下次能读到）
         self._sync_config_to_streamdock()
-        # 刷新天气
-        self.update_weather()
+        self.update_weather(force=True)   # 用户主动保存，强制刷新
 
     def on_send_to_plugin(self, payload: dict):
-        """处理来自属性检查器的自定义命令（如测试 Key）"""
         action = payload.get('action')
         if action == 'testKey':
             api_key = payload.get('apiKey')
@@ -208,15 +206,30 @@ class Weather(Action):
             return {"success": False, "error": str(e)}
 
     # ---------- 核心业务 ----------
-    def update_weather(self):
-        # 热加载：每次刷新重新读取 config.json
+    def update_weather(self, force=False):
+        """
+        刷新天气数据并更新按键显示。
+        :param force: 是否强制刷新（忽略限流检查），True 时必定刷新
+        """
+        # ---- 限流检查（仅在非强制时生效） ----
+        if not force:
+            now = time.time()
+            if not hasattr(self.plugin, '_last_update_time'):
+                self.plugin._last_update_time = 0
+            if now - self.plugin._last_update_time < self.REFRESH_THRESHOLD:
+                Logger.info(f"[Weather] 距上次自动刷新不足 {self.REFRESH_THRESHOLD} 秒，跳过本次刷新")
+                return
+            self.plugin._last_update_time = now
+        else:
+            Logger.info("[Weather] 强制刷新模式")
+
+        # ---- 热加载配置 ----
         config_path = self._get_config_path()
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                 self._apply_config(config)
-                # 同步到 StreamDock 存储（保证前端最新）
                 self._sync_config_to_streamdock()
             except Exception as e:
                 Logger.error(f"[Weather] 热加载配置失败: {e}")
@@ -289,7 +302,6 @@ class Weather(Action):
     def generate_button_image(self, data):
         output_size = (72, 72)
 
-        # ---------- 加载背景 ----------
         bg = None
         if self.bg_type == 'image':
             bg_path = os.path.join(self.resources_path, self.bg_image)
@@ -316,7 +328,6 @@ class Weather(Action):
 
         draw = ImageDraw.Draw(bg)
 
-        # ---------- 天气图标（白色，固定） ----------
         icon_font = None
         try:
             icon_font = ImageFont.truetype(self.font_path, 32)
@@ -345,7 +356,6 @@ class Weather(Action):
         else:
             draw.text((30, 2), "?", font=ImageFont.load_default(), fill=(255, 255, 255))
 
-        # ---------- 文字内容（使用自定义颜色和描边） ----------
         # 解析字体颜色
         try:
             hex_color = self.text_color.lstrip('#')
@@ -406,19 +416,16 @@ class Weather(Action):
                     w, _ = draw.textsize(line, font=text_font)
                 x = (output_size[0] - w) // 2
 
-                # 如果字体颜色与描边颜色相同，直接绘制纯色文字，避免加粗
+                # 如果字体颜色与描边相同，直接绘制纯色文字
                 if text_rgb == stroke_rgb:
                     draw.text((x, y), line, font=text_font, fill=text_rgb)
                 else:
-                    # 否则绘制带描边的文字
-                    def draw_text_with_outline(draw, text, x, y, font, fill_color, outline_color, outline_width=1):
-                        for dx in range(-outline_width, outline_width+1):
-                            for dy in range(-outline_width, outline_width+1):
-                                if dx != 0 or dy != 0:
-                                    draw.text((x+dx, y+dy), text, font=font, fill=outline_color)
-                        draw.text((x, y), text, font=font, fill=fill_color)
-
-                    draw_text_with_outline(draw, line, x, y, text_font, text_rgb, stroke_rgb)
+                    # 否则带描边
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            if dx != 0 or dy != 0:
+                                draw.text((x+dx, y+dy), line, font=text_font, fill=stroke_rgb)
+                    draw.text((x, y), line, font=text_font, fill=text_rgb)
 
                 y += line_heights[idx] + spacing
 
