@@ -1,0 +1,27 @@
+{
+  "Name": "音乐控制",
+  "Description": "显示当前播放的歌曲信息并控制播放/暂停",
+  "Author": "Your Name",
+  "Version": "1.0.0",
+  "Category": "多媒体",
+  "CategoryIcon": "",
+  "CodePath": "com.qxb.music.sdPlugin.exe",
+  "Actions": [
+    {
+      "Name": "音乐控制",
+      "UUID": "com.qxb.music.music",
+      "Icon": "",
+      "Tooltip": "单击切换播放/暂停",
+      "States": [
+        {
+          "Image": "",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    }
+  ],
+  "SDKVersion": 2,
+  "OS": [
+    { "Platform": "windows", "MinimumVersion": "10" }
+  ]
+}
