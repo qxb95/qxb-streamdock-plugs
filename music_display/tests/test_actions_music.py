@@ -64,7 +64,7 @@ def test_init_renders_placeholder_image(action, ws):
 
 def test_load_background_falls_back_to_solid_colour(monkeypatch, controller, plugin):
     monkeypatch.setattr(Music, '_background_cache', None)
-    monkeypatch.setattr(music_module.os.path, 'exists', lambda path: False)
+    monkeypatch.setattr(music_module, 'find_resource', lambda *parts: '/missing/icon.png')
 
     Music('com.qxb.music.music', 'ctx-bg', {}, plugin)
 
@@ -76,8 +76,7 @@ def test_load_background_uses_icon_when_available(monkeypatch, tmp_path, control
     icon = tmp_path / 'icon.png'
     Image.new('RGB', (32, 32), color=(10, 20, 30)).save(icon)
     monkeypatch.setattr(Music, '_background_cache', None)
-    monkeypatch.setattr(music_module.os.path, 'exists', lambda path: True)
-    monkeypatch.setattr(music_module.os.path, 'join', lambda *parts: str(icon))
+    monkeypatch.setattr(music_module, 'find_resource', lambda *parts: str(icon))
 
     Music('com.qxb.music.music', 'ctx-icon', {}, plugin)
 
@@ -89,29 +88,25 @@ def test_load_background_falls_back_when_icon_is_invalid(monkeypatch, tmp_path, 
     broken = tmp_path / 'icon.png'
     broken.write_text('not an image')
     monkeypatch.setattr(Music, '_background_cache', None)
-    monkeypatch.setattr(music_module.os.path, 'exists', lambda path: True)
-    monkeypatch.setattr(music_module.os.path, 'join', lambda *parts: str(broken))
+    monkeypatch.setattr(music_module, 'find_resource', lambda *parts: str(broken))
 
     Music('com.qxb.music.music', 'ctx-broken', {}, plugin)
 
     assert Music._background_cache.getpixel((0, 0)) == music_module.BG_COLOR
 
 
-def test_load_background_uses_meipass_when_frozen(monkeypatch, controller, plugin):
+def test_load_background_looks_up_icon_via_find_resource(monkeypatch, controller, plugin):
     monkeypatch.setattr(Music, '_background_cache', None)
-    monkeypatch.setattr(music_module.sys, 'frozen', True, raising=False)
-    monkeypatch.setattr(music_module.sys, '_MEIPASS', '/frozen/root', raising=False)
-    seen = []
-
-    def fake_exists(path):
-        seen.append(path)
-        return False
-
-    monkeypatch.setattr(music_module.os.path, 'exists', fake_exists)
+    requested = []
+    monkeypatch.setattr(
+        music_module, 'find_resource',
+        lambda *parts: requested.append(parts) or '/missing/icon.png',
+    )
 
     Music('com.qxb.music.music', 'ctx-frozen', {}, plugin)
 
-    assert seen and seen[0].startswith('/frozen/root')
+    assert requested == [('icon.png',)]
+    assert Music._background_cache.getpixel((0, 0)) == music_module.BG_COLOR
 
 
 def test_load_background_is_cached(action, controller, plugin):
@@ -132,28 +127,27 @@ def test_get_font_falls_back_for_other_sizes(action):
     assert font is not None
 
 
-def test_compute_text_width_grows_with_text_length(action):
+def test_text_width_grows_with_text_length(action):
     font = action._get_font(music_module.FONT_SIZE)
 
-    assert action._compute_text_width('abcdefghij', font) > action._compute_text_width('a', font)
+    assert music_module.text_width('abcdefghij', font) > music_module.text_width('a', font)
 
 
 def test_calc_font_size_returns_default_for_short_text(action):
     assert action._calc_font_size('a') == music_module.FONT_SIZE
 
 
-def test_calc_font_size_shrinks_for_long_text(action, monkeypatch):
-    monkeypatch.setattr(action, '_compute_text_width', lambda text, font: 10)
+def test_calc_font_size_shrinks_until_text_fits(action, monkeypatch):
+    # 用字号本身当作字体，让文本宽度与字号成正比，便于推算被选中的字号
+    monkeypatch.setattr(action, '_get_font', lambda size: size)
+    monkeypatch.setattr(music_module, 'text_width', lambda text, font: font * len(text))
 
-    assert action._calc_font_size('x' * 400) <= music_module.FONT_SIZE
+    assert action._calc_font_size('xx') == music_module.FONT_SIZE
+    assert action._calc_font_size('xxxx') == 22  # 22 * 4 <= WINDOW_WIDTH < 24 * 4
 
 
 def test_calc_font_size_floor_is_ten(action, monkeypatch):
-    class WideDraw:
-        def textbbox(self, origin, text, font=None):
-            return (0, 0, 10_000, 20)
-
-    monkeypatch.setattr(music_module.ImageDraw, 'Draw', lambda img: WideDraw())
+    monkeypatch.setattr(music_module, 'text_width', lambda text, font: 10_000)
 
     assert action._calc_font_size('x' * 200) == 10
 

@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from src.core.logger import Logger
+from streamdock_core.logger import Logger
 
 
 @pytest.fixture
@@ -62,6 +62,23 @@ def test_get_logger_recreates_logger_when_reset():
 
         assert logger.name == 'StreamDock'
         assert logger.handlers
+    finally:
+        Logger._logger = original
+        original.handlers = handlers
+
+
+def test_setup_logger_survives_file_handler_failure(monkeypatch, capsys):
+    monkeypatch.setattr('streamdock_core.logger.os.makedirs',
+                        lambda path, exist_ok=False: (_ for _ in ()).throw(OSError('read-only fs')))
+    original = Logger._logger
+    handlers = list(original.handlers)
+    original.handlers = []
+    Logger._logger = None
+    try:
+        logger = Logger.get_logger()
+
+        assert [type(h) for h in logger.handlers] == [logging.StreamHandler]
+        assert 'Failed to setup file handler' in capsys.readouterr().out
     finally:
         Logger._logger = original
         original.handlers = handlers

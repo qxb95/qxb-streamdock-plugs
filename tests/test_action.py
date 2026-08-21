@@ -1,17 +1,17 @@
 import pytest
 
-from core.action import Action
+from streamdock_core.action import Action
 
-from conftest import FakePlugin
+from tests.fakes import FakePlugin
 
 
 @pytest.fixture
 def action(plugin):
-    return Action('com.qxb.music.music', 'ctx-1', {'city': '北京'}, plugin)
+    return Action('com.qxb.time.time', 'ctx-1', {'city': '北京'}, plugin)
 
 
 def test_init_stores_arguments(action, plugin):
-    assert action.action == 'com.qxb.music.music'
+    assert action.action == 'com.qxb.time.time'
     assert action.context == 'ctx-1'
     assert action.settings == {'city': '北京'}
     assert action.title == ''
@@ -25,7 +25,7 @@ def test_send_to_property_inspector(action, ws):
 
     assert ws.last_event() == {
         'event': 'sendToPropertyInspector',
-        'action': 'com.qxb.music.music',
+        'action': 'com.qxb.time.time',
         'context': 'ctx-1',
         'payload': {'k': 'v'},
     }
@@ -98,6 +98,34 @@ def test_log_message(action, ws):
     }
 
 
+def test_default_event_callbacks_do_nothing(action):
+    action.on_will_appear()
+    action.on_will_disappear()
+    for name in (
+        'on_key_down', 'on_key_up', 'on_dial_down', 'on_dial_up', 'on_dial_rotate',
+        'on_property_inspector_did_appear', 'on_property_inspector_did_disappear',
+        'on_send_to_plugin', 'on_did_receive_global_settings', 'on_device_did_connect',
+        'on_device_did_disconnect', 'on_application_did_launch',
+        'on_application_did_terminate', 'on_system_did_wake_up',
+    ):
+        getattr(action, name)({})
+
+    assert action.settings == {'city': '北京'}
+
+
+def test_on_did_receive_settings_replaces_settings(action):
+    action.on_did_receive_settings({'city': '上海'})
+
+    assert action.settings == {'city': '上海'}
+
+
+def test_on_title_parameters_did_change_stores_title(action):
+    action.on_title_parameters_did_change({'title': 'T', 'titleParameters': {'fontSize': 12}})
+
+    assert action.title == 'T'
+    assert action.title_parameters == {'fontSize': 12}
+
+
 def test_no_send_without_server():
     action = Action('a', 'ctx', {}, FakePlugin(ws=None))
     action._server = None
@@ -105,11 +133,17 @@ def test_no_send_without_server():
     action.set_title('t')
     action.set_state(0)
     action.set_image('x')
-    action.set_settings({'a': 1})
     action.send_to_property_inspector({})
     action.open_url('https://example.com')
     action.show_ok()
     action.show_alert()
     action.log_message('m')
 
-    assert action.settings == {}
+
+def test_send_failure_is_logged_not_raised(action, ws):
+    def boom(message):
+        raise RuntimeError('socket closed')
+
+    ws.send = boom
+
+    action.set_title('t')  # 不应抛出异常

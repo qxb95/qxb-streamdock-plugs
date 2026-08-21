@@ -1,6 +1,6 @@
 import threading
 
-from src.core.timer import Timer
+from streamdock_core.timer import Timer
 
 
 def test_set_interval_converts_milliseconds_to_seconds():
@@ -66,4 +66,21 @@ def test_timer_thread_is_daemon():
     timer = Timer()
 
     assert timer._thread.daemon is True
+    assert timer._thread.is_alive()
+
+
+def test_callback_exception_does_not_kill_timer_thread():
+    timer = Timer()
+    calls = []
+
+    def boom():
+        calls.append(1)
+        raise RuntimeError('boom')
+
+    timer.set_interval('tick', 100, boom)
+    deadline = threading.Event()
+    deadline.wait(0.5)
+    timer.clear_interval('tick')
+
+    assert len(calls) > 1, '回调抛异常后定时器线程应继续运行'
     assert timer._thread.is_alive()

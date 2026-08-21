@@ -33,7 +33,7 @@ def test_init_sends_initial_image_and_registers_timer(plugin, ws, small_clock):
     assert action.dial_size == 400
     assert action._timer_key == 'time_update_ctx-1'
     assert plugin.timer.intervals['time_update_ctx-1']['delay'] == 1000
-    assert plugin.timer.intervals['time_update_ctx-1']['callback'] == action._on_timer_tick
+    assert plugin.timer.intervals['time_update_ctx-1']['callback'] == action._refresh
     assert len(decoded_images(ws)) == 1
 
 
@@ -48,7 +48,7 @@ def test_initial_image_is_a_valid_png(plugin, ws, small_clock):
 def test_timer_tick_pushes_a_new_image(plugin, ws, small_clock):
     action = Time('com.qxb.time.time', 'ctx-1', {}, plugin)
 
-    action._on_timer_tick()
+    action._refresh()
 
     assert len(ws.events_of('setImage')) == 2
 
@@ -72,7 +72,7 @@ def test_render_failure_during_tick_does_not_raise(plugin, ws, small_clock, monk
         lambda canvas_size, dial_size: (_ for _ in ()).throw(RuntimeError('boom')),
     )
 
-    action._on_timer_tick()
+    action._refresh()
 
     assert len(ws.events_of('setImage')) == 1
 

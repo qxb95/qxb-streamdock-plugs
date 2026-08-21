@@ -1,7 +1,7 @@
 import asyncio
 import ctypes
 from pycaw.pycaw import AudioUtilities
-from .logger import Logger
+from streamdock_core import Logger
 from winrt.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as MediaManager
 )

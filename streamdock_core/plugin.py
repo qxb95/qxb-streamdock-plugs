@@ -2,7 +2,7 @@ import json
 import threading
 import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import websocket
 
@@ -10,9 +10,6 @@ from .action import Action
 from .action_factory import ActionFactory
 from .logger import Logger
 from .timer import Timer
-
-
-Callback = Callable[[Action, Any], None]
 
 
 def _payload(data: Dict[str, Any]) -> Any:
@@ -27,27 +24,27 @@ def _message(data: Dict[str, Any]) -> Any:
     return data
 
 
-#: 需要转发给单个 Action 的事件 -> (回调, 回调参数提取函数)
+#: 需要转发给单个 Action 的事件 -> (回调方法名, 回调参数提取函数)
 CONTEXT_EVENTS: Dict[str, tuple] = {
-    'keyDown': (Action.on_key_down, _payload),
-    'keyUp': (Action.on_key_up, _payload),
-    'dialDown': (Action.on_dial_down, _payload),
-    'dialUp': (Action.on_dial_up, _payload),
-    'dialRotate': (Action.on_dial_rotate, _payload),
-    'didReceiveSettings': (Action.on_did_receive_settings, _settings),
-    'titleParametersDidChange': (Action.on_title_parameters_did_change, _payload),
-    'propertyInspectorDidAppear': (Action.on_property_inspector_did_appear, _message),
-    'propertyInspectorDidDisappear': (Action.on_property_inspector_did_disappear, _message),
-    'sendToPlugin': (Action.on_send_to_plugin, _payload),
+    'keyDown': ('on_key_down', _payload),
+    'keyUp': ('on_key_up', _payload),
+    'dialDown': ('on_dial_down', _payload),
+    'dialUp': ('on_dial_up', _payload),
+    'dialRotate': ('on_dial_rotate', _payload),
+    'didReceiveSettings': ('on_did_receive_settings', _settings),
+    'titleParametersDidChange': ('on_title_parameters_did_change', _payload),
+    'propertyInspectorDidAppear': ('on_property_inspector_did_appear', _message),
+    'propertyInspectorDidDisappear': ('on_property_inspector_did_disappear', _message),
+    'sendToPlugin': ('on_send_to_plugin', _payload),
 }
 
-#: 需要广播给所有 Action 的事件 -> 回调
-GLOBAL_EVENTS: Dict[str, Callback] = {
-    'deviceDidConnect': Action.on_device_did_connect,
-    'deviceDidDisconnect': Action.on_device_did_disconnect,
-    'applicationDidLaunch': Action.on_application_did_launch,
-    'applicationDidTerminate': Action.on_application_did_terminate,
-    'systemDidWakeUp': Action.on_system_did_wake_up,
+#: 需要广播给所有 Action 的事件 -> 回调方法名
+GLOBAL_EVENTS: Dict[str, str] = {
+    'deviceDidConnect': 'on_device_did_connect',
+    'deviceDidDisconnect': 'on_device_did_disconnect',
+    'applicationDidLaunch': 'on_application_did_launch',
+    'applicationDidTerminate': 'on_application_did_terminate',
+    'systemDidWakeUp': 'on_system_did_wake_up',
 }
 
 CONNECT_TIMEOUT = 3.0
@@ -132,14 +129,14 @@ class Plugin:
 
         if event == 'didReceiveGlobalSettings':
             self.global_settings = data.get('payload', {}).get('settings')
-            self._dispatch_global(Action.on_did_receive_global_settings, self.global_settings)
+            self._dispatch_global('on_did_receive_global_settings', self.global_settings)
         elif event == 'willAppear':
             self._on_will_appear(data)
         elif event == 'willDisappear':
             self._on_will_disappear(data)
         elif event in CONTEXT_EVENTS:
-            handler, extractor = CONTEXT_EVENTS[event]
-            self._dispatch_context(data.get('context'), handler, extractor(data))
+            handler_name, extractor = CONTEXT_EVENTS[event]
+            self._dispatch_context(data.get('context'), handler_name, extractor(data))
         elif event in GLOBAL_EVENTS:
             self._dispatch_global(GLOBAL_EVENTS[event], data)
 
@@ -165,17 +162,17 @@ class Plugin:
         if action:
             action.on_will_disappear()
 
-    def _dispatch_context(self, context: Optional[str], handler: Callback, payload: Any):
-        """将事件转发给指定 context 的 Action"""
+    def _dispatch_context(self, context: Optional[str], handler_name: str, payload: Any):
+        """将事件转发给指定 context 的 Action（按名称查找，子类覆盖的回调优先）"""
         action = self.actions.get(context) if context else None
         if action is None:
             return
-        handler(action, payload)
+        getattr(action, handler_name)(payload)
 
-    def _dispatch_global(self, handler: Callback, payload: Any):
+    def _dispatch_global(self, handler_name: str, payload: Any):
         """将事件广播给所有 Action"""
         for action in list(self.actions.values()):
-            handler(action, payload)
+            getattr(action, handler_name)(payload)
 
     def _send(self, event: str, **fields: Any):
         if not self.ws:
