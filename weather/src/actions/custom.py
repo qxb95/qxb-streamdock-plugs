@@ -3,7 +3,6 @@ import time
 from PIL import Image, ImageDraw
 import io
 import base64
-import requests
 from src.core.action import Action
 from src.core.logger import Logger
 
@@ -40,12 +39,6 @@ class Custom(Action):
         Logger.info(f"[Custom] Received global settings: {settings}")
 
     def on_key_down(self, payload: dict):
-        res = requests.get("https://localhost:8000/api", verify=False)
-        response = requests.get("https://geoapi.qweather.com/v2/city/lookup?location=广州&key=bdd98ec1d87747f3a2e8b1741a5af796")
-        if response.status_code == 200:
-            Logger.info(response.json())  # 假设响应内容是 JSON 格式
-        else:
-            Logger.info(f"请求失败，状态码: {response.status_code}")
         Logger.info(f"[Custom] Key down event with payload: {payload}")
 
     def on_key_up(self, payload: dict):

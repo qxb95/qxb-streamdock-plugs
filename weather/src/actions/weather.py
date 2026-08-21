@@ -108,6 +108,22 @@ class Weather(Action):
             self.bg_image = 'bg_default.png'
             self.bg_color = '#2c3e50'
 
+    @staticmethod
+    def _mask_secret(value):
+        if not value:
+            return ""
+        if len(value) <= 8:
+            return "****"
+        return f"{value[:4]}****{value[-4:]}"
+
+    @classmethod
+    def _redact(cls, config):
+        """返回可安全写入日志的配置副本（敏感字段已脱敏）"""
+        safe = dict(config)
+        if 'apiKey' in safe:
+            safe['apiKey'] = cls._mask_secret(safe.get('apiKey'))
+        return safe
+
     def _apply_config(self, config):
         self.api_key = config.get('apiKey', "")
         self.city = config.get('city', "北京")
@@ -118,8 +134,23 @@ class Weather(Action):
         self.text_color = config.get('textColor', "#ffffff")
         self.stroke_color = config.get('strokeColor', "#000000")
         self.bg_type = config.get('bgType', 'image')
-        self.bg_image = config.get('bgImage', 'bg_default.png')
+        self.bg_image = self._sanitize_bg_image(config.get('bgImage', 'bg_default.png'))
         self.bg_color = config.get('bgColor', '#2c3e50')
+
+    @staticmethod
+    def _sanitize_bg_image(name):
+        """仅允许 resources 目录下的图片文件名，防止路径穿越"""
+        default = 'bg_default.png'
+        if not isinstance(name, str) or not name:
+            return default
+        base = os.path.basename(name)
+        if base != name or base.startswith('.'):
+            Logger.warning(f"[Weather] 非法背景图片名，已回退默认值: {name}")
+            return default
+        if os.path.splitext(base)[1].lower() not in ('.png', '.jpg', '.jpeg', '.bmp'):
+            Logger.warning(f"[Weather] 不支持的背景图片类型，已回退默认值: {name}")
+            return default
+        return base
 
     def _save_config(self, config):
         config_path = self._get_config_path()
@@ -167,7 +198,7 @@ class Weather(Action):
         self.update_weather(force=True)   # 强制刷新，忽略限流
 
     def on_did_receive_settings(self, settings: dict):
-        Logger.info(f"[Weather] 收到新设置: {settings}")
+        Logger.info(f"[Weather] 收到新设置: {self._redact(settings)}")
         self._save_config(settings)
         self._apply_config(settings)
         self._sync_config_to_streamdock()
@@ -256,7 +287,7 @@ class Weather(Action):
             "key": self.api_key,
             "extensions": "base"
         }
-        Logger.info(f"[Weather] 请求参数: city={self.city}, key={self.api_key[:4] if len(self.api_key) > 4 else ''}****{self.api_key[-4:] if len(self.api_key) > 4 else ''}")
+        Logger.info(f"[Weather] 请求参数: city={self.city}, key={self._mask_secret(self.api_key)}")
         try:
             resp = requests.get(url, params=params, timeout=5)
             resp.raise_for_status()
