@@ -1,6 +1,1 @@
-from .timer import Timer
-from .action import Action
-from .plugin import Plugin
-from .logger import Logger
-
-__all__ = ['Timer', 'Action', 'Plugin', 'Logger']
+"""插件专用模块；通用框架见仓库根目录的 streamdock_core。"""

@@ -1,15 +1,25 @@
 # main.spec
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+
 block_cipher = None
 
+spec_dir = os.getcwd()
+repo_dir = os.path.dirname(spec_dir)
+
 hiddenimports = [
+    'streamdock_core',
+    'streamdock_core.action',
+    'streamdock_core.action_factory',
+    'streamdock_core.app',
+    'streamdock_core.images',
+    'streamdock_core.logger',
+    'streamdock_core.paths',
+    'streamdock_core.plugin',
+    'streamdock_core.timer',
     'src.core',
-    'src.core.action',
-    'src.core.plugin',
-    'src.core.logger',
-    'src.core.timer',
-    'src.core.action_factory',
+    'src.core.renderer',
     'src.actions',
     'src.actions.time',
     'src.actions.custom',
@@ -27,11 +37,12 @@ hiddenimports = [
 datas = [
     ('src', 'src'),               # ✅ 将 src 目录复制到打包输出
     ('manifest.json', '.'),
+    ('background.png', '.'),
 ]
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=[spec_dir, repo_dir],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

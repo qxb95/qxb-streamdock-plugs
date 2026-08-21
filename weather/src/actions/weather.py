@@ -1,13 +1,12 @@
-import sys
 import os
 import json
-import base64
-import io
 import time
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from src.core.action import Action
-from src.core.logger import Logger
+
+from streamdock_core import Action, Logger
+from streamdock_core.images import load_font, to_data_url
+from streamdock_core.paths import app_dir, find_resource
 
 class Weather(Action):
     WEATHER_ICON_MAP = {
@@ -43,20 +42,9 @@ class Weather(Action):
         # 同步到 StreamDock 存储（供前端读取）
         self._sync_config_to_streamdock()
 
-        # 资源路径
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
-            external_res = os.path.join(exe_dir, 'resources')
-            if os.path.exists(external_res):
-                self.resources_path = external_res
-                Logger.info(f"[Weather] 使用外部资源: {self.resources_path}")
-            else:
-                self.resources_path = os.path.join(sys._MEIPASS, 'resources')
-                Logger.info(f"[Weather] 使用内置资源: {self.resources_path}")
-        else:
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            self.resources_path = os.path.join(base_path, 'resources')
-            Logger.info(f"[Weather] 开发环境资源: {self.resources_path}")
+        # 资源路径（优先使用 exe 同级目录，其次为打包内置资源）
+        self.resources_path = find_resource('resources')
+        Logger.info(f"[Weather] 资源路径: {self.resources_path}")
 
         self.font_path = os.path.join(self.resources_path, 'iconfont.ttf')
         Logger.info(f"[Weather] 字体路径: {self.font_path}")
@@ -74,10 +62,7 @@ class Weather(Action):
 
     # ---------- 配置相关 ----------
     def _get_config_path(self):
-        if getattr(sys, 'frozen', False):
-            return os.path.join(os.path.dirname(sys.executable), 'config.json')
-        else:
-            return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config.json')
+        return os.path.join(app_dir(), 'config.json')
 
     def _load_and_apply_config(self, settings=None):
         config_path = self._get_config_path()
@@ -108,6 +93,22 @@ class Weather(Action):
             self.bg_image = 'bg_default.png'
             self.bg_color = '#2c3e50'
 
+    @staticmethod
+    def _mask_secret(value):
+        if not value:
+            return ""
+        if len(value) <= 8:
+            return "****"
+        return f"{value[:4]}****{value[-4:]}"
+
+    @classmethod
+    def _redact(cls, config):
+        """返回可安全写入日志的配置副本（敏感字段已脱敏）"""
+        safe = dict(config)
+        if 'apiKey' in safe:
+            safe['apiKey'] = cls._mask_secret(safe.get('apiKey'))
+        return safe
+
     def _apply_config(self, config):
         self.api_key = config.get('apiKey', "")
         self.city = config.get('city', "北京")
@@ -118,8 +119,23 @@ class Weather(Action):
         self.text_color = config.get('textColor', "#ffffff")
         self.stroke_color = config.get('strokeColor', "#000000")
         self.bg_type = config.get('bgType', 'image')
-        self.bg_image = config.get('bgImage', 'bg_default.png')
+        self.bg_image = self._sanitize_bg_image(config.get('bgImage', 'bg_default.png'))
         self.bg_color = config.get('bgColor', '#2c3e50')
+
+    @staticmethod
+    def _sanitize_bg_image(name):
+        """仅允许 resources 目录下的图片文件名，防止路径穿越"""
+        default = 'bg_default.png'
+        if not isinstance(name, str) or not name:
+            return default
+        base = os.path.basename(name)
+        if base != name or base.startswith('.'):
+            Logger.warning(f"[Weather] 非法背景图片名，已回退默认值: {name}")
+            return default
+        if os.path.splitext(base)[1].lower() not in ('.png', '.jpg', '.jpeg', '.bmp'):
+            Logger.warning(f"[Weather] 不支持的背景图片类型，已回退默认值: {name}")
+            return default
+        return base
 
     def _save_config(self, config):
         config_path = self._get_config_path()
@@ -167,7 +183,7 @@ class Weather(Action):
         self.update_weather(force=True)   # 强制刷新，忽略限流
 
     def on_did_receive_settings(self, settings: dict):
-        Logger.info(f"[Weather] 收到新设置: {settings}")
+        Logger.info(f"[Weather] 收到新设置: {self._redact(settings)}")
         self._save_config(settings)
         self._apply_config(settings)
         self._sync_config_to_streamdock()
@@ -256,7 +272,7 @@ class Weather(Action):
             "key": self.api_key,
             "extensions": "base"
         }
-        Logger.info(f"[Weather] 请求参数: city={self.city}, key={self.api_key[:4] if len(self.api_key) > 4 else ''}****{self.api_key[-4:] if len(self.api_key) > 4 else ''}")
+        Logger.info(f"[Weather] 请求参数: city={self.city}, key={self._mask_secret(self.api_key)}")
         try:
             resp = requests.get(url, params=params, timeout=5)
             resp.raise_for_status()
@@ -278,14 +294,7 @@ class Weather(Action):
     def get_error_image(self, msg="错误"):
         img = Image.new("RGB", (72, 72), (44, 62, 80))
         draw = ImageDraw.Draw(img)
-        try:
-            if os.name == 'nt':
-                font_path = "C:/Windows/Fonts/msyh.ttc"
-            else:
-                font_path = "/System/Library/Fonts/PingFang.ttc"
-            font = ImageFont.truetype(font_path, 10)
-        except:
-            font = ImageFont.load_default()
+        font = load_font(10)
         try:
             bbox = draw.textbbox((0, 0), msg, font=font)
             w = bbox[2] - bbox[0]
@@ -295,9 +304,7 @@ class Weather(Action):
         x = (72 - w) // 2
         y = (72 - h) // 2
         draw.text((x, y), msg, font=font, fill=(255, 200, 200))
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+        return to_data_url(img)
 
     def generate_button_image(self, data):
         output_size = (72, 72)
@@ -323,7 +330,8 @@ class Weather(Action):
                 color = self.bg_color.lstrip('#')
                 r, g, b = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
                 bg = Image.new("RGB", output_size, (r, g, b))
-            except:
+            except Exception as e:
+                Logger.warning(f"[Weather] 背景色解析失败 ({self.bg_color}): {e}，使用默认颜色")
                 bg = Image.new("RGB", output_size, (44, 62, 80))
 
         draw = ImageDraw.Draw(bg)
@@ -360,24 +368,19 @@ class Weather(Action):
         try:
             hex_color = self.text_color.lstrip('#')
             text_rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-        except:
+        except Exception as e:
+            Logger.warning(f"[Weather] 字体颜色解析失败 ({self.text_color}): {e}，使用默认颜色")
             text_rgb = (255, 255, 255)
 
         # 解析描边颜色
         try:
             hex_stroke = self.stroke_color.lstrip('#')
             stroke_rgb = tuple(int(hex_stroke[i:i+2], 16) for i in (0, 2, 4))
-        except:
+        except Exception as e:
+            Logger.warning(f"[Weather] 描边颜色解析失败 ({self.stroke_color}): {e}，使用默认颜色")
             stroke_rgb = (0, 0, 0)
 
-        try:
-            if os.name == 'nt':
-                text_font_path = "C:/Windows/Fonts/msyh.ttc"
-            else:
-                text_font_path = "/System/Library/Fonts/PingFang.ttc"
-            text_font = ImageFont.truetype(text_font_path, self.font_size)
-        except:
-            text_font = ImageFont.load_default()
+        text_font = load_font(self.font_size)
 
         lines = []
         if self.show_city:
@@ -429,7 +432,4 @@ class Weather(Action):
 
                 y += line_heights[idx] + spacing
 
-        buffered = io.BytesIO()
-        bg.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{img_base64}"
+        return to_data_url(bg)

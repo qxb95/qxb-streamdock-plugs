@@ -164,3 +164,9 @@ thoughts/
 .idea/**/dataSources.ids
 .idea/**/dataSources.local.xml
 .vscode/
+# 插件运行时配置（可能包含 API Key），仅提交 config.example.json
+config.json
+
+# 运行日志（可能包含运行时数据）
+logs/
+plugin.log

@@ -243,6 +243,15 @@
             });
         });
 
+        // 日志脱敏：避免把完整 Key 写入调试输出
+        function redactSettings(settings) {
+            const safe = Object.assign({}, settings);
+            if (safe.apiKey) {
+                safe.apiKey = maskApiKey(safe.apiKey);
+            }
+            return safe;
+        }
+
         // 隐藏 Key 显示
         function maskApiKey(key) {
             if (!key || key.length <= 8) return key || '';
@@ -253,7 +262,7 @@
 
         // 应用配置到表单
         function applySettings(settings) {
-            log('应用设置: ' + JSON.stringify(settings));
+            log('应用设置: ' + JSON.stringify(redactSettings(settings)));
             if (settings.apiKey) {
                 apiKeyInput.value = maskApiKey(settings.apiKey);
                 apiKeyInput.dataset.original = settings.apiKey;
@@ -338,21 +347,21 @@
 
             websocket.onmessage = function(msg) {
                 const data = JSON.parse(msg.data);
-                log('收到消息: ' + msg.data);
+                log('收到消息: ' + data.event);
 
                 if (data.event === "didReceiveSettings") {
                     const settings = data.payload.settings || {};
-                    log('应用存储设置: ' + JSON.stringify(settings));
+                    log('应用存储设置: ' + JSON.stringify(redactSettings(settings)));
                     applySettings(settings);
                 }
 
                 if (data.event === "testKeyResult") {
                     const result = data.payload || {};
                     if (result.success) {
-                        testResult.innerHTML = '✅ 有效！天气：' + (result.weather || '');
+                        testResult.textContent = '✅ 有效！天气：' + (result.weather || '');
                         testResult.className = 'success';
                     } else {
-                        testResult.innerHTML = '❌ 无效：' + (result.error || '未知错误');
+                        testResult.textContent = '❌ 无效：' + (result.error || '未知错误');
                         testResult.className = 'error';
                     }
                 }
@@ -386,7 +395,7 @@
                     return;
                 }
             }
-            log('准备保存配置: ' + JSON.stringify(settings));
+            log('准备保存配置: ' + JSON.stringify(redactSettings(settings)));
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 websocket.send(JSON.stringify({
                     event: "setSettings",
@@ -410,7 +419,7 @@
             }
             testResult.textContent = '测试中...';
             testResult.className = '';
-            log('测试 Key: ' + apiKey.slice(0,4) + '****' + apiKey.slice(-4));
+            log('测试 Key: ' + maskApiKey(apiKey));
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 websocket.send(JSON.stringify({
                     event: "sendToPlugin",

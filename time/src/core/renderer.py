@@ -2,7 +2,11 @@
 import datetime
 import math
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+from streamdock_core import Logger
+from streamdock_core.images import load_font
+from streamdock_core.paths import find_resource
 
 _BG_CACHE = None
 _BG_IMAGE = None
@@ -15,7 +19,7 @@ def _load_background(size: int):
         return _BG_IMAGE
 
     possible_paths = [
-        os.path.join(os.path.dirname(__file__), "..", "..", "background.png"),
+        find_resource("background.png"),
         "background.png",
         os.path.join("debug_output", "background.png"),
     ]
@@ -26,24 +30,16 @@ def _load_background(size: int):
                 img = img.resize((size, size), Image.Resampling.LANCZOS)
                 _BG_IMAGE = img
                 return img
-            except Exception:
-                pass
+            except Exception as e:
+                Logger.warning(f"背景图片加载失败 ({path}): {e}")
     return None
 
 
 def _get_font(size: int):
     global _FONT_CACHE
-    if _FONT_CACHE is not None:
-        return _FONT_CACHE
-    try:
-        font = ImageFont.truetype("arial.ttf", int(size * 0.12))
-    except:
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(size * 0.12))
-        except:
-            font = ImageFont.load_default()
-    _FONT_CACHE = font
-    return font
+    if _FONT_CACHE is None:
+        _FONT_CACHE = load_font(int(size * 0.12))
+    return _FONT_CACHE
 
 
 def render_clock(canvas_size: int = 500, dial_size: int = 400) -> Image.Image:

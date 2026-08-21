@@ -22,7 +22,11 @@ if not exist property_inspector (
 )
 
 copy manifest.json dist\
-if exist config.json copy config.json dist\
+if exist config.json (
+    copy config.json dist\
+) else (
+    if exist config.example.json copy config.example.json dist\config.json
+)
 
 echo ====================================
 echo 打包完成！

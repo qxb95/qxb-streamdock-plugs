@@ -1,10 +1,10 @@
 import os
-import sys
-import io
-import base64
-from PIL import Image, ImageDraw, ImageFont
-from core.action import Action
-from core.logger import Logger
+from PIL import Image, ImageDraw
+
+from streamdock_core import Action, Logger
+from streamdock_core.images import load_font, text_width, to_data_url
+from streamdock_core.paths import find_resource
+
 from core.music_controller import MusicController
 
 SCROLL_INTERVAL_MS = 120
@@ -12,6 +12,7 @@ STEP_PIXELS = 2
 FETCH_INTERVAL_MS = 500          # 缩短至 0.5 秒，更快响应
 BUTTON_SIZE = (100, 100)
 FONT_SIZE = 28
+FONT_PATH = 'C:/Windows/Fonts/msyh.ttc'
 TEXT_COLOR = (255, 255, 255)
 BG_COLOR = (30, 30, 50)
 PADDING = 6
@@ -50,11 +51,7 @@ class Music(Action):
     def _load_background(self):
         if Music._background_cache is not None:
             return
-        if getattr(sys, 'frozen', False):
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        icon_path = os.path.join(base_path, 'icon.png')
+        icon_path = find_resource('icon.png')
         if os.path.exists(icon_path):
             try:
                 img = Image.open(icon_path).convert('RGB').resize(BUTTON_SIZE)
@@ -67,34 +64,16 @@ class Music(Action):
 
     def _init_font(self):
         if Music._font_cache is None:
-            try:
-                Music._font_cache = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", FONT_SIZE)
-            except:
-                Music._font_cache = ImageFont.load_default()
+            Music._font_cache = load_font(FONT_SIZE, FONT_PATH)
 
     def _get_font(self, size):
         if size == FONT_SIZE and Music._font_cache is not None:
             return Music._font_cache
-        try:
-            return ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", size)
-        except:
-            return ImageFont.load_default()
-
-    def _compute_text_width(self, text, font):
-        dummy_img = Image.new('RGB', (1, 1))
-        dummy_draw = ImageDraw.Draw(dummy_img)
-        bbox = dummy_draw.textbbox((0, 0), text, font=font)
-        return bbox[2] - bbox[0]
+        return load_font(size, FONT_PATH)
 
     def _calc_font_size(self, text):
-        max_width = WINDOW_WIDTH
         for size in range(FONT_SIZE, 10, -2):
-            font = self._get_font(size)
-            dummy_img = Image.new('RGB', (1, 1))
-            dummy_draw = ImageDraw.Draw(dummy_img)
-            bbox = dummy_draw.textbbox((0, 0), text, font=font)
-            tw = bbox[2] - bbox[0]
-            if tw <= max_width:
+            if text_width(text, self._get_font(size)) <= WINDOW_WIDTH:
                 return size
         return 10
 
@@ -103,15 +82,12 @@ class Music(Action):
         draw = ImageDraw.Draw(img)
         font = self._get_font(self._cached_font_size)
         text = self.full_text
-        tw = self._compute_text_width(text, font)
+        tw = text_width(text, font)
         th = font.getmetrics()[1]
         x = (BUTTON_SIZE[0] - tw) // 2
         y = (BUTTON_SIZE[1] - th) // 2
         draw.text((x, y), text, fill=TEXT_COLOR, font=font)
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{b64}"
+        return to_data_url(img)
 
     def _draw_button_with_offset(self, offset_px):
         if self.scroll_period == 0:
@@ -121,7 +97,7 @@ class Music(Action):
         draw = ImageDraw.Draw(img)
         font = self._get_font(self._cached_font_size)
         text = self.full_text
-        tw = self._compute_text_width(text, font)
+        tw = text_width(text, font)
         th = font.getmetrics()[1]
         base_x = (BUTTON_SIZE[0] - tw) // 2
         draw_y = (BUTTON_SIZE[1] - th) // 2
@@ -133,10 +109,7 @@ class Music(Action):
         cropped = img.crop(crop_box)
         final_img = Music._background_cache.copy()
         final_img.paste(cropped, (PADDING, 0))
-        buffered = io.BytesIO()
-        final_img.save(buffered, format="PNG")
-        b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{b64}"
+        return to_data_url(final_img)
 
     def _update_display(self, offset_px=None):
         if offset_px is None:
@@ -152,7 +125,8 @@ class Music(Action):
 
     def on_key_down(self, payload: dict):
         # 发送多媒体键（自动双向切换）
-        self.music.play_pause()
+        if not self.music.play_pause():
+            self.show_alert()
         # 立即刷新状态（不再等待定时器）
         self._update_title()
 
@@ -170,7 +144,7 @@ class Music(Action):
             if new_text != " 无播放 ":
                 self._cached_font_size = self._calc_font_size(new_text)
                 font = self._get_font(self._cached_font_size)
-                self.full_text_width = self._compute_text_width(new_text, font)
+                self.full_text_width = text_width(new_text, font)
                 self.scroll_period = self.full_text_width + 20
                 self.scroll_pixel_offset = 0
             else:

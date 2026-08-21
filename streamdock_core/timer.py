@@ -1,10 +1,14 @@
-# src/core/timer.py
 import threading
 import time
-from typing import Dict, Callable
+import traceback
+from typing import Callable, Dict
+
+from .logger import Logger
 
 
 class Timer:
+    """轮询式定时器，按 uuid 管理多个周期任务"""
+
     def __init__(self):
         self._intervals: Dict[str, Dict] = {}
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -15,7 +19,10 @@ class Timer:
             current_time = time.time()
             for uuid, data in list(self._intervals.items()):
                 if current_time - data['last_run'] >= data['delay']:
-                    data['callback']()
+                    try:
+                        data['callback']()
+                    except Exception:
+                        Logger.error(f"定时器回调异常 (uuid={uuid}):\n{traceback.format_exc()}")
                     data['last_run'] = current_time
             time.sleep(0.1)
 
