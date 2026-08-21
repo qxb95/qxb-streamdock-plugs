@@ -69,7 +69,8 @@ class Music(Action):
         if Music._font_cache is None:
             try:
                 Music._font_cache = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", FONT_SIZE)
-            except:
+            except OSError as e:
+                Logger.warning(f"[Music] 加载 msyh.ttc 字体失败，使用默认字体: {e}")
                 Music._font_cache = ImageFont.load_default()
 
     def _get_font(self, size):
@@ -77,7 +78,7 @@ class Music(Action):
             return Music._font_cache
         try:
             return ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", size)
-        except:
+        except OSError:
             return ImageFont.load_default()
 
     def _compute_text_width(self, text, font):
@@ -152,7 +153,8 @@ class Music(Action):
 
     def on_key_down(self, payload: dict):
         # 发送多媒体键（自动双向切换）
-        self.music.play_pause()
+        if not self.music.play_pause():
+            self.show_alert()
         # 立即刷新状态（不再等待定时器）
         self._update_title()
 

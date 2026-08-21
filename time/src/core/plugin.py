@@ -2,6 +2,7 @@
 import json
 import threading
 import time
+import traceback
 import websocket
 from typing import Any, Dict, List, Optional
 from .timer import Timer
@@ -63,6 +64,12 @@ class Plugin:
             Logger.error(f"JSON 解析失败: {e}")
             return
 
+        try:
+            self._handle_event(data)
+        except Exception:
+            Logger.error(f"处理事件 '{data.get('event')}' 异常:\n{traceback.format_exc()}")
+
+    def _handle_event(self, data):
         event = data.get('event')
         Logger.info(f"收到事件: {event}")
 

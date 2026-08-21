@@ -4,6 +4,7 @@ import argparse
 import sys
 import threading
 import time
+import traceback
 
 
 def main():
@@ -29,9 +30,9 @@ def main():
         plugin.ws.on_close = on_close
         stop_event.wait()
 
-    except Exception as e:
-        Logger.info(e)
-        sys.exit(0)
+    except Exception:
+        Logger.error(f"插件运行异常:\n{traceback.format_exc()}")
+        sys.exit(1)
 
 
 if __name__ == '__main__':

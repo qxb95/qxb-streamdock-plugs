@@ -3,6 +3,7 @@ import datetime
 import math
 import os
 from PIL import Image, ImageDraw, ImageFont
+from .logger import Logger
 
 _BG_CACHE = None
 _BG_IMAGE = None
@@ -26,8 +27,8 @@ def _load_background(size: int):
                 img = img.resize((size, size), Image.Resampling.LANCZOS)
                 _BG_IMAGE = img
                 return img
-            except Exception:
-                pass
+            except Exception as e:
+                Logger.warning(f"背景图片加载失败 ({path}): {e}")
     return None
 
 
@@ -37,10 +38,11 @@ def _get_font(size: int):
         return _FONT_CACHE
     try:
         font = ImageFont.truetype("arial.ttf", int(size * 0.12))
-    except:
+    except OSError:
         try:
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(size * 0.12))
-        except:
+        except OSError as e:
+            Logger.warning(f"TrueType 字体加载失败，使用默认字体: {e}")
             font = ImageFont.load_default()
     _FONT_CACHE = font
     return font

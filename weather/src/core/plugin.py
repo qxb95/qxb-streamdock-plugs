@@ -1,5 +1,6 @@
 import json
 import threading
+import traceback
 import websocket
 import logging
 import os
@@ -67,8 +68,19 @@ class Plugin:
         Args:
             ws: WebSocket连接实例
             message: 接收到的JSON消息
-        """        
-        data = json.loads(message)
+        """
+        try:
+            data = json.loads(message)
+        except json.JSONDecodeError as e:
+            Logger.error(f"JSON 解析失败: {e}")
+            return
+
+        try:
+            self._handle_event(data)
+        except Exception:
+            Logger.error(f"处理事件 '{data.get('event')}' 异常:\n{traceback.format_exc()}")
+
+    def _handle_event(self, data):
         event = data.get('event')
         Logger.info(event)
         if event == 'didReceiveGlobalSettings':

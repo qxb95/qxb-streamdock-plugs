@@ -1,6 +1,7 @@
 import asyncio
 import ctypes
 from pycaw.pycaw import AudioUtilities
+from .logger import Logger
 from winrt.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as MediaManager
 )
@@ -25,7 +26,8 @@ class MusicController:
         try:
             sessions = self._loop.run_until_complete(MediaManager.request_async())
             self._session = sessions.get_current_session()
-        except Exception:
+        except Exception as e:
+            Logger.warning(f"获取媒体会话失败: {e}")
             self._session = None
 
     def get_media_info(self):
@@ -42,8 +44,8 @@ class MusicController:
                 if media_props:
                     title = media_props.title or ""
                     artist = media_props.artist or ""
-            except Exception:
-                pass
+            except Exception as e:
+                Logger.warning(f"获取媒体属性失败: {e}")
 
         # 检测播放状态（使用 pycaw）
         playing = False
@@ -53,8 +55,8 @@ class MusicController:
                 if session.State == 1:  # AudioSessionStateActive
                     playing = True
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            Logger.warning(f"检测音频播放状态失败: {e}")
 
         status = "PLAYING" if playing else "STOPPED"
 
@@ -68,7 +70,8 @@ class MusicController:
         try:
             send_media_key()
             return True
-        except Exception:
+        except Exception as e:
+            Logger.error(f"发送媒体按键失败: {e}")
             return False
 
     def close(self):
