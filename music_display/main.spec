@@ -4,6 +4,7 @@ from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
 spec_dir = os.getcwd()
+repo_dir = os.path.dirname(spec_dir)
 
 # 收集所有 winrt 子模块（用于读取标题）
 winrt_submodules = collect_submodules('winrt')
@@ -18,11 +19,15 @@ datas = [
 ]
 
 hiddenimports = [
-    'core.action',
-    'core.logger',
-    'core.plugin',
-    'core.timer',
-    'core.action_factory',
+    'streamdock_core',
+    'streamdock_core.action',
+    'streamdock_core.action_factory',
+    'streamdock_core.app',
+    'streamdock_core.images',
+    'streamdock_core.logger',
+    'streamdock_core.paths',
+    'streamdock_core.plugin',
+    'streamdock_core.timer',
     'core.music_controller',
     'PIL',
     'PIL.Image',
@@ -54,7 +59,7 @@ hiddenimports = [
 
 a = Analysis(
     ['main.py'],
-    pathex=[spec_dir],
+    pathex=[spec_dir, repo_dir],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

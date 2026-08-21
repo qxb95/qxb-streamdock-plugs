@@ -1,11 +1,14 @@
 import threading
 import time
 import traceback
-from typing import Dict, Callable
+from typing import Callable, Dict
+
 from .logger import Logger
 
 
 class Timer:
+    """轮询式定时器，按 uuid 管理多个周期任务"""
+
     def __init__(self):
         self._intervals: Dict[str, Dict] = {}
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -24,6 +27,7 @@ class Timer:
             time.sleep(0.1)
 
     def set_interval(self, uuid: str, delay: float, callback: Callable):
+        """设置定时器，delay 单位为毫秒"""
         self._intervals[uuid] = {
             'delay': delay / 1000,  # Convert ms to seconds
             'callback': callback,

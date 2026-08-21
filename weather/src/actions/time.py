@@ -1,7 +1,6 @@
-import json
 import time
-from src.core.action import Action
-from src.core.logger import Logger
+
+from streamdock_core import Action, Logger
 
 class Time(Action):
     def __init__(self, action: str, context: str, settings: dict, plugin):
