@@ -344,6 +344,7 @@ class Weather(Action):
             if not icon_char:
                 icon_char = self.WEATHER_ICON_MAP.get("未知", "\ue60c")
 
+        icon_y = 2
         if icon_font:
             try:
                 bbox = draw.textbbox((0, 0), icon_char, font=icon_font)
@@ -351,7 +352,6 @@ class Weather(Action):
             except AttributeError:
                 icon_width, _ = draw.textsize(icon_char, font=icon_font)
             icon_x = (output_size[0] - icon_width) // 2
-            icon_y = 2
             draw.text((icon_x, icon_y), icon_char, font=icon_font, fill=(255, 255, 255))
         else:
             draw.text((30, 2), "?", font=ImageFont.load_default(), fill=(255, 255, 255))

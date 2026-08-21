@@ -1,0 +1,6 @@
+# 单元测试依赖（各插件的运行时依赖见各自的 requirements.txt）
+pytest>=8.0,<10.0
+pytest-cov>=6.0,<8.0
+Pillow==11.1.0
+requests==2.32.3
+websocket-client==1.8.0
