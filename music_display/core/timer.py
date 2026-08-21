@@ -1,6 +1,8 @@
 import threading
 import time
+import traceback
 from typing import Dict, Callable
+from .logger import Logger
 
 
 class Timer:
@@ -14,7 +16,10 @@ class Timer:
             current_time = time.time()
             for uuid, data in list(self._intervals.items()):
                 if current_time - data['last_run'] >= data['delay']:
-                    data['callback']()
+                    try:
+                        data['callback']()
+                    except Exception:
+                        Logger.error(f"定时器回调异常 (uuid={uuid}):\n{traceback.format_exc()}")
                     data['last_run'] = current_time
             time.sleep(0.1)
 

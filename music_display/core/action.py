@@ -1,6 +1,8 @@
 import json
 from typing import Any, Dict
 
+from .logger import Logger
+
 
 class Action:
     def __init__(self, action: str, context: str, settings: Dict, plugin):
@@ -76,8 +78,8 @@ class Action:
                     'payload': {'target': 0, 'image': url}
                 })
                 self._server.send(message)
-            except Exception:
-                pass
+            except Exception as e:
+                Logger.error(f"发送 setImage 失败 (context={self.context}): {e}")
 
     def log_message(self, message: str):
         if self._server:

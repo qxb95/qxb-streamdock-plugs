@@ -284,7 +284,8 @@ class Weather(Action):
             else:
                 font_path = "/System/Library/Fonts/PingFang.ttc"
             font = ImageFont.truetype(font_path, 10)
-        except:
+        except OSError as e:
+            Logger.warning(f"[Weather] 加载错误提示字体失败，使用默认字体: {e}")
             font = ImageFont.load_default()
         try:
             bbox = draw.textbbox((0, 0), msg, font=font)
@@ -323,7 +324,8 @@ class Weather(Action):
                 color = self.bg_color.lstrip('#')
                 r, g, b = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
                 bg = Image.new("RGB", output_size, (r, g, b))
-            except:
+            except Exception as e:
+                Logger.warning(f"[Weather] 背景色解析失败 ({self.bg_color}): {e}，使用默认颜色")
                 bg = Image.new("RGB", output_size, (44, 62, 80))
 
         draw = ImageDraw.Draw(bg)
@@ -360,14 +362,16 @@ class Weather(Action):
         try:
             hex_color = self.text_color.lstrip('#')
             text_rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-        except:
+        except Exception as e:
+            Logger.warning(f"[Weather] 字体颜色解析失败 ({self.text_color}): {e}，使用默认颜色")
             text_rgb = (255, 255, 255)
 
         # 解析描边颜色
         try:
             hex_stroke = self.stroke_color.lstrip('#')
             stroke_rgb = tuple(int(hex_stroke[i:i+2], 16) for i in (0, 2, 4))
-        except:
+        except Exception as e:
+            Logger.warning(f"[Weather] 描边颜色解析失败 ({self.stroke_color}): {e}，使用默认颜色")
             stroke_rgb = (0, 0, 0)
 
         try:
@@ -376,7 +380,8 @@ class Weather(Action):
             else:
                 text_font_path = "/System/Library/Fonts/PingFang.ttc"
             text_font = ImageFont.truetype(text_font_path, self.font_size)
-        except:
+        except Exception as e:
+            Logger.warning(f"[Weather] 加载文字字体失败，使用默认字体: {e}")
             text_font = ImageFont.load_default()
 
         lines = []
