@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from .timer import Timer
 from .action import Action
 from .logger import Logger
@@ -19,8 +18,6 @@ class Plugin:
         self.global_settings: Any = None
         self.timer = Timer()
         self.plugin_uuid = plugin_uuid
-        self.http_server = None
-        self.http_server_thread = None
 
         self.ws = websocket.WebSocketApp(
             f'ws://127.0.0.1:{port}',
@@ -154,7 +151,6 @@ class Plugin:
         return [a for a in self.actions.values() if a.action == action]
 
     def stop(self):
-        if self.http_server:
-            self.http_server.shutdown()
-            self.http_server.server_close()
-            Logger.info("HTTP server stopped")
+        if self.ws:
+            self.ws.close()
+            Logger.info("WebSocket closed")

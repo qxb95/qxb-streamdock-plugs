@@ -44,7 +44,8 @@ com.qxb.weather.sdPlugin/
 ├── main.spec                     # PyInstaller 打包配置文件
 ├── build.bat                     # Windows 一键打包脚本
 ├── requirements.txt              # Python 依赖列表
-├── config.json                   # 用户配置文件（自动生成/手动创建）
+├── config.example.json           # 配置模板（复制为 config.json 后使用）
+├── config.json                   # 用户配置文件（含 API Key，已加入 .gitignore，不要提交）
 ├── resources/                    # 资源文件夹
 │   ├── bg_default.png            # 默认背景图片（72x72）
 │   ├── bg_dark.png               # 深色背景图片（可选）
@@ -69,6 +70,8 @@ com.qxb.weather.sdPlugin/
 ## ⚙️ 配置说明
 
 ### 1. `config.json` 示例
+
+首次使用请执行 `copy config.example.json config.json`，再填入自己的 Key。`config.json` 已被 `.gitignore` 忽略，避免 Key 被提交到仓库。
 
 ```json
 {

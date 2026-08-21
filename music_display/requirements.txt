@@ -1,10 +1,10 @@
-websocket-client==1.8.0
-Pillow==11.1.0
-requests==2.32.3
+websocket-client==1.9.0
+Pillow==12.3.0
+requests==2.34.2
 winrt-Windows.Media.Control
 winrt-Windows.Foundation
 winrt-Windows.Storage.Streams
 pyinstaller==6.12.0
-cryptography==44.0.2
+cryptography==50.0.0
 keyboard
 pycaw

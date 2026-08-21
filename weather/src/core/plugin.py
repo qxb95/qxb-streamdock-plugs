@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from .timer import Timer
 from .action import Action
 from .logger import Logger
@@ -30,12 +29,7 @@ class Plugin:
         self.global_settings: Any = None
         self.timer = Timer()
         self.plugin_uuid = plugin_uuid
-        self.http_server = None
-        self.http_server_thread = None
-        
-        # 启动HTTP服务
-        # self._start_http_server()
-        
+
         # Initialize WebSocket
         self.ws = websocket.WebSocketApp(
             f'ws://127.0.0.1:{port}',
@@ -216,111 +210,11 @@ class Plugin:
         """        
         return [a for a in self.actions.values() if a.action == action]
     
-    def _start_http_server(self, port: int = 8000):
-        """启动HTTPS服务器
-        
-        Args:
-            port: HTTPS服务器端口号，默认为8000
-        """
-        import ssl
-        import os
-        
-        class RequestHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == '/api':
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
-                    response = {'status': 'ok', 'message': 'API endpoint'}
-                    self.wfile.write(json.dumps(response).encode())
-                else:
-                    self.send_response(404)
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
-                    response = {'status': 'error', 'message': 'Not found'}
-                    self.wfile.write(json.dumps(response).encode())
-        
-        try:
-            self.http_server = HTTPServer(('0.0.0.0', port), RequestHandler)
-            
-            # 配置SSL
-            import tempfile
-            
-            # 创建临时文件来存储证书和密钥
-            cert_file = tempfile.NamedTemporaryFile(delete=False)
-            key_file = tempfile.NamedTemporaryFile(delete=False)
-            
-            # 生成自签名证书和私钥
-            from cryptography import x509
-            from cryptography.x509.oid import NameOID
-            from cryptography.hazmat.primitives import hashes
-            from cryptography.hazmat.primitives.asymmetric import rsa
-            from cryptography.hazmat.primitives import serialization
-            from datetime import datetime, timedelta
-            
-            # 生成私钥
-            private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=2048
-            )
-            
-            # 生成证书
-            subject = issuer = x509.Name([
-                x509.NameAttribute(NameOID.COMMON_NAME, u"localhost"),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"Stream Dock Plugin"),
-                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u"Development"),
-                x509.NameAttribute(NameOID.COUNTRY_NAME, u"CN"),
-                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"Development State"),
-                x509.NameAttribute(NameOID.LOCALITY_NAME, u"Development City"),
-            ])
-            
-            cert = x509.CertificateBuilder().subject_name(
-                subject
-            ).issuer_name(
-                issuer
-            ).public_key(
-                private_key.public_key()
-            ).serial_number(
-                x509.random_serial_number()
-            ).not_valid_before(
-                datetime.utcnow()
-            ).not_valid_after(
-                datetime.utcnow() + timedelta(days=365)
-            ).sign(private_key, hashes.SHA256())
-            
-            # 将证书和私钥写入临时文件
-            cert_file.write(cert.public_bytes(serialization.Encoding.PEM))
-            key_file.write(private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
-            ))
-            cert_file.close()
-            key_file.close()
-            
-            # 配置SSL上下文
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            context.load_cert_chain(cert_file.name, key_file.name)
-            
-            # 包装socket
-            self.http_server.socket = context.wrap_socket(self.http_server.socket, server_side=True)
-            
-            # 删除临时文件
-            os.unlink(cert_file.name)
-            os.unlink(key_file.name)
-            
-            self.http_server_thread = threading.Thread(target=self.http_server.serve_forever, daemon=True)
-            self.http_server_thread.start()
-            Logger.info(f"HTTPS server started on port {port}")
-        except Exception as e:
-            Logger.error(f"Failed to start HTTPS server: {e}")
-    
     def stop(self):
         """停止插件服务
-        
-        停止HTTP服务器和WebSocket连接
+
+        关闭与 Stream Dock 的 WebSocket 连接
         """
-        if self.http_server:
-            self.http_server.shutdown()
-            self.http_server.server_close()
-            Logger.info("HTTP server stopped")
+        if self.ws:
+            self.ws.close()
+            Logger.info("WebSocket closed")
