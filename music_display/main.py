@@ -1,39 +1,13 @@
-from core.plugin import Plugin
-from core.logger import Logger
-import argparse
+import os
 import sys
-import threading
-import time
-import traceback
 
+# 插件目录用于导入 actions 包，仓库根目录用于导入公共框架 streamdock_core
+_PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+for _path in (_PLUGIN_DIR, os.path.dirname(_PLUGIN_DIR)):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
-def main():
-    Logger.info("Plugin Start")
-    parser = argparse.ArgumentParser(description='Stream Dock Plugin')
-    parser.add_argument('-port', type=int, required=True, help='WebSocket port number')
-    parser.add_argument('-pluginUUID', type=str, required=True, help='Unique identifier for the plugin')
-    parser.add_argument('-registerEvent', type=str, required=True, help='Event type for plugin registration')
-    parser.add_argument('-info', type=str, required=True,
-                        help='JSON string containing Stream Dock and device information')
-    args = parser.parse_args()
-
-    try:
-        time.sleep(1)
-        plugin = Plugin(args.port, args.pluginUUID, args.registerEvent, args.info)
-        stop_event = threading.Event()
-
-        def on_close(ws, close_status_code, close_msg):
-            plugin.stop()
-            stop_event.set()
-            Logger.info('Plugin stopped')
-
-        plugin.ws.on_close = on_close
-        stop_event.wait()
-
-    except Exception:
-        Logger.error(f"插件运行异常:\n{traceback.format_exc()}")
-        sys.exit(1)
-
+from streamdock_core import run_plugin  # noqa: E402
 
 if __name__ == '__main__':
-    main()
+    run_plugin('Music')

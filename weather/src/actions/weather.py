@@ -1,13 +1,12 @@
-import sys
 import os
 import json
-import base64
-import io
 import time
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from src.core.action import Action
-from src.core.logger import Logger
+
+from streamdock_core import Action, Logger
+from streamdock_core.images import load_font, to_data_url
+from streamdock_core.paths import app_dir, find_resource
 
 class Weather(Action):
     WEATHER_ICON_MAP = {
@@ -43,20 +42,9 @@ class Weather(Action):
         # 同步到 StreamDock 存储（供前端读取）
         self._sync_config_to_streamdock()
 
-        # 资源路径
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
-            external_res = os.path.join(exe_dir, 'resources')
-            if os.path.exists(external_res):
-                self.resources_path = external_res
-                Logger.info(f"[Weather] 使用外部资源: {self.resources_path}")
-            else:
-                self.resources_path = os.path.join(sys._MEIPASS, 'resources')
-                Logger.info(f"[Weather] 使用内置资源: {self.resources_path}")
-        else:
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            self.resources_path = os.path.join(base_path, 'resources')
-            Logger.info(f"[Weather] 开发环境资源: {self.resources_path}")
+        # 资源路径（优先使用 exe 同级目录，其次为打包内置资源）
+        self.resources_path = find_resource('resources')
+        Logger.info(f"[Weather] 资源路径: {self.resources_path}")
 
         self.font_path = os.path.join(self.resources_path, 'iconfont.ttf')
         Logger.info(f"[Weather] 字体路径: {self.font_path}")
@@ -74,10 +62,7 @@ class Weather(Action):
 
     # ---------- 配置相关 ----------
     def _get_config_path(self):
-        if getattr(sys, 'frozen', False):
-            return os.path.join(os.path.dirname(sys.executable), 'config.json')
-        else:
-            return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config.json')
+        return os.path.join(app_dir(), 'config.json')
 
     def _load_and_apply_config(self, settings=None):
         config_path = self._get_config_path()
@@ -309,15 +294,7 @@ class Weather(Action):
     def get_error_image(self, msg="错误"):
         img = Image.new("RGB", (72, 72), (44, 62, 80))
         draw = ImageDraw.Draw(img)
-        try:
-            if os.name == 'nt':
-                font_path = "C:/Windows/Fonts/msyh.ttc"
-            else:
-                font_path = "/System/Library/Fonts/PingFang.ttc"
-            font = ImageFont.truetype(font_path, 10)
-        except OSError as e:
-            Logger.warning(f"[Weather] 加载错误提示字体失败，使用默认字体: {e}")
-            font = ImageFont.load_default()
+        font = load_font(10)
         try:
             bbox = draw.textbbox((0, 0), msg, font=font)
             w = bbox[2] - bbox[0]
@@ -327,9 +304,7 @@ class Weather(Action):
         x = (72 - w) // 2
         y = (72 - h) // 2
         draw.text((x, y), msg, font=font, fill=(255, 200, 200))
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+        return to_data_url(img)
 
     def generate_button_image(self, data):
         output_size = (72, 72)
@@ -405,15 +380,7 @@ class Weather(Action):
             Logger.warning(f"[Weather] 描边颜色解析失败 ({self.stroke_color}): {e}，使用默认颜色")
             stroke_rgb = (0, 0, 0)
 
-        try:
-            if os.name == 'nt':
-                text_font_path = "C:/Windows/Fonts/msyh.ttc"
-            else:
-                text_font_path = "/System/Library/Fonts/PingFang.ttc"
-            text_font = ImageFont.truetype(text_font_path, self.font_size)
-        except Exception as e:
-            Logger.warning(f"[Weather] 加载文字字体失败，使用默认字体: {e}")
-            text_font = ImageFont.load_default()
+        text_font = load_font(self.font_size)
 
         lines = []
         if self.show_city:
@@ -465,7 +432,4 @@ class Weather(Action):
 
                 y += line_heights[idx] + spacing
 
-        buffered = io.BytesIO()
-        bg.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{img_base64}"
+        return to_data_url(bg)
