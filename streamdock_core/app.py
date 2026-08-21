@@ -3,6 +3,7 @@ import argparse
 import sys
 import threading
 import time
+import traceback
 from typing import Optional
 
 from .action_factory import ActionFactory
@@ -49,6 +50,6 @@ def run_plugin(name: str, actions_dir: Optional[str] = None) -> None:
 
         plugin.ws.on_close = on_close
         stop_event.wait()
-    except Exception as e:
-        Logger.error(f"插件运行异常: {e}")
-        sys.exit(0)
+    except Exception:
+        Logger.error(f"插件运行异常:\n{traceback.format_exc()}")
+        sys.exit(1)
