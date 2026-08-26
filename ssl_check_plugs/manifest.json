@@ -1,0 +1,50 @@
+{
+  "Actions": [
+    {
+      "UUID": "com.qxb.certmonitor.cert_monitor",
+      "Icon": "static/img/icon.png",
+      "state": 0,
+      "States": [
+        {
+          "TitleAlignment": "bottom",
+          "FontSize": "9",
+          "Image": "static/img/state_normal.png"
+        },
+        {
+          "TitleAlignment": "bottom",
+          "FontSize": "9",
+          "Image": "static/img/state_warning.png"
+        }
+      ],
+      "Settings": {},
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "Controllers": [
+        "Keypad"
+      ],
+      "Name": "证书监测",
+      "Tooltip": "监测 SSL 证书和域名到期时间，支持多域名翻页",
+      "PropertyInspectorPath": "property_inspector/index.html"
+    }
+  ],
+  "Version": "1.0.0",
+  "Name": "证书监测插件",
+  "Icon": "static/img/icon.png",
+  "CategoryIcon": "static/img/icon.png",
+  "Category": "证书监测",
+  "Description": "监测 SSL 证书和域名到期时间，支持多域名翻页",
+  "CodePath": "com.qxb.certmonitor.sdPlugin.exe",
+  "SDKVersion": 1,
+  "Author": "qxb",
+  "URL": "",
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "10.11"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "7"
+    }
+  ]
+}
