@@ -1,0 +1,50 @@
+{
+  "Actions": [
+    {
+      "UUID": "com.qxb.nascheck.nasmonitor",
+      "Icon": "static/img/icon.png",
+      "state": 0,
+      "States": [
+        {
+          "TitleAlignment": "bottom",
+          "FontSize": "9",
+          "Image": "static/img/state_normal.png"
+        },
+        {
+          "TitleAlignment": "bottom",
+          "FontSize": "9",
+          "Image": "static/img/state_warning.png"
+        }
+      ],
+      "Settings": {},
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "Controllers": [
+        "Keypad"
+      ],
+      "Name": "NAS 监控",
+      "Tooltip": "显示 Beszel 性能数据（CPU、内存、磁盘等）",
+      "PropertyInspectorPath": "Property_Inspector/nas_monitor.html"
+    }
+  ],
+  "Version": "1.0.0",
+  "Name": "NAS 监控插件",
+  "Icon": "static/img/icon.png",
+  "CategoryIcon": "static/img/icon.png",
+  "Category": "系统监控",
+  "Description": "通过 Beszel Hub 实时监控 NAS 性能指标",
+  "CodePath": "com.qxb.nascheck.sdPlugin.exe",
+  "SDKVersion": 1,
+  "Author": "qxb",
+  "URL": "https://your-website.com/",
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "10.11"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "7"
+    }
+  ]
+}

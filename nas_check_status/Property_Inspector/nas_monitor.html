@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NAS 监控配置</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; background: #1e1e1e; color: #eee; }
+        .field-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 13px; }
+        input, select { width: 100%; padding: 6px 8px; background: #2d2d2d; border: 1px solid #444; color: #eee; border-radius: 4px; box-sizing: border-box; }
+        .hint { font-size: 11px; color: #888; margin-top: 2px; }
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        button { background: #0078d7; border: none; color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #106ebe; }
+        button.secondary { background: #444; }
+        .status { margin-top: 10px; padding: 6px 10px; border-radius: 4px; background: #2d2d2d; color: #aaa; font-size: 12px; }
+        input[type="range"] { width: 100%; margin: 6px 0; }
+        .range-value { display: inline-block; min-width: 30px; text-align: center; font-weight: bold; color: #0078d7; }
+        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+        .dot.green { background: #28a745; }
+        .dot.yellow { background: #f0ad4e; }
+        .dot.red { background: #dc3545; }
+        .dot.off { background: #555; }
+        .status-bar { padding: 6px 10px; background: #2a2a3d; border-radius: 4px; margin-bottom: 12px; font-size: 12px; display: flex; align-items: center; }
+        .collapse-toggle { cursor: pointer; user-select: none; color: #888; font-size: 13px; }
+        .collapse-content { display: none; margin-top: 10px; }
+        .collapse-content.open { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- ====== 状态栏 ====== -->
+<div class="status-bar">
+    <span class="dot off" id="statusDot"></span>
+    <span id="statusText">等待连接...</span>
+</div>
+
+<!-- ====== Beszel 连接信息 ====== -->
+<div class="field-group">
+    <label>Beszel Hub 地址</label>
+    <input type="text" id="beszel_url" placeholder="http://192.168.1.100:8090">
+    <div class="hint">包含协议和端口</div>
+</div>
+<div class="field-group">
+    <label>登录邮箱</label>
+    <input type="text" id="beszel_email" placeholder="admin@example.com">
+</div>
+<div class="field-group">
+    <label>登录密码</label>
+    <input type="password" id="beszel_password" placeholder="密码">
+</div>
+<div class="field-group">
+    <label>Agent 名称</label>
+    <input type="text" id="beszel_agent" placeholder="nas1">
+    <div class="hint">在 Beszel 中设置的系统名称</div>
+</div>
+
+<!-- ====== 刷新间隔 ====== -->
+<div class="field-group">
+    <label>刷新间隔（秒）</label>
+    <input type="number" id="refresh_interval" value="10" min="5" step="1">
+</div>
+
+<!-- ====== 显示指标 ====== -->
+<div class="field-group">
+    <label>显示指标</label>
+    <select id="metric">
+        <option value="cpu">CPU 使用率</option>
+        <option value="mp">内存使用率</option>
+        <option value="dp">磁盘使用率</option>
+        <option value="s">Swap 使用率</option>
+        <option value="gpu_pct">GPU 使用率</option>
+    </select>
+</div>
+
+<!-- ====== 球体缩放 ====== -->
+<div class="field-group">
+    <label>球体大小 <span id="scale_display" class="range-value">0.9</span></label>
+    <input type="range" id="ball_scale" min="0.4" max="1.5" step="0.05" value="0.9">
+</div>
+
+<!-- ====== 背景图片 ====== -->
+<div class="field-group">
+    <label>背景图片路径</label>
+    <input type="text" id="bg_image" placeholder="backgrounds/tech.png">
+    <div class="hint">相对于插件根目录的图片路径，支持 PNG/JPG</div>
+</div>
+
+<!-- ====== 操作按钮 ====== -->
+<div class="btn-group">
+    <button id="saveBtn">💾 保存设置</button>
+    <button id="refreshBtn" class="secondary">🔄 立即刷新</button>
+</div>
+<div id="saveFeedback" style="margin-top:6px;font-size:13px;min-height:20px;"></div>
+
+<script>
+    // ====== 全局状态 ======
+    let websocket = null;
+    let context = null;
+    let pluginUUID = null;
+    let settingsCache = {};
+
+    // DOM 引用
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const saveFeedback = document.getElementById('saveFeedback');
+
+    const beszel_url = document.getElementById('beszel_url');
+    const beszel_email = document.getElementById('beszel_email');
+    const beszel_password = document.getElementById('beszel_password');
+    const beszel_agent = document.getElementById('beszel_agent');
+    const refresh_interval = document.getElementById('refresh_interval');
+    const metric = document.getElementById('metric');
+    const ball_scale = document.getElementById('ball_scale');
+    const scale_display = document.getElementById('scale_display');
+    const bg_image = document.getElementById('bg_image');
+
+    // ====== 滑块显示 ======
+    ball_scale.addEventListener('input', function() {
+        scale_display.textContent = this.value;
+    });
+
+    // ====== 状态栏 ======
+    function setStatus(state, msg) {
+        statusDot.className = 'dot ' + state;
+        statusText.textContent = msg;
+        console.log('[PI] 状态:', state, msg);
+    }
+
+    function showFeedback(msg, isError = false) {
+        saveFeedback.textContent = msg;
+        saveFeedback.style.color = isError ? '#ff6b6b' : '#5cb85c';
+        setTimeout(() => { saveFeedback.textContent = ''; }, 4000);
+    }
+
+    // ====== 表单操作 ======
+    function getFormSettings() {
+        return {
+            beszel_url: beszel_url.value.trim(),
+            beszel_email: beszel_email.value.trim(),
+            beszel_password: beszel_password.value.trim(),
+            beszel_agent: beszel_agent.value.trim(),
+            refresh_interval: parseInt(refresh_interval.value) || 10,
+            metric: metric.value,
+            ball_scale: parseFloat(ball_scale.value),
+            bg_image: bg_image.value.trim()
+        };
+    }
+
+    function applySettings(settings) {
+        if (!settings) return;
+        settingsCache = settings;
+        beszel_url.value = settings.beszel_url || '';
+        beszel_email.value = settings.beszel_email || '';
+        beszel_password.value = settings.beszel_password || '';
+        beszel_agent.value = settings.beszel_agent || '';
+        refresh_interval.value = settings.refresh_interval || 10;
+        metric.value = settings.metric || 'cpu';
+        ball_scale.value = settings.ball_scale || 0.9;
+        scale_display.textContent = settings.ball_scale || 0.9;
+        bg_image.value = settings.bg_image || '';
+        setStatus('green', '已加载配置');
+    }
+
+    // ====== 核心：独立 WebSocket 通信（参照天气插件） ======
+    window.connectElgatoStreamDeckSocket = function(port, uuid, event, app, info) {
+        context = uuid;
+        pluginUUID = uuid;
+        setStatus('yellow', '连接中...');
+
+        websocket = new WebSocket('ws://127.0.0.1:' + port);
+
+        websocket.onopen = function() {
+            setStatus('green', '已连接');
+            // 注册插件
+            websocket.send(JSON.stringify({
+                event: event,
+                uuid: uuid
+            }));
+            // 请求当前设置
+            setTimeout(() => {
+                websocket.send(JSON.stringify({
+                    event: 'getSettings',
+                    context: uuid
+                }));
+            }, 300);
+        };
+
+        websocket.onmessage = function(evt) {
+            try {
+                const data = JSON.parse(evt.data);
+                console.log('[PI] 收到消息:', data.event, data);
+
+                if (data.event === 'didReceiveSettings') {
+                    const settings = data.payload.settings || {};
+                    applySettings(settings);
+                }
+
+                // 处理自定义响应
+                if (data.event === 'sendToPropertyInspector') {
+                    const payload = data.payload || {};
+                    if (payload.status) {
+                        showFeedback('✅ ' + payload.status);
+                    }
+                    if (payload.settings) {
+                        applySettings(payload.settings);
+                    }
+                }
+
+            } catch (e) {
+                console.error('[PI] 解析消息失败:', e);
+            }
+        };
+
+        websocket.onerror = function(err) {
+            setStatus('red', '连接错误');
+            console.error('[PI] WebSocket 错误:', err);
+        };
+
+        websocket.onclose = function() {
+            setStatus('red', '连接已断开');
+        };
+    };
+
+    // ====== 发送消息的辅助函数 ======
+    function sendToPlugin(payload) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                event: 'sendToPlugin',
+                context: context,
+                payload: payload
+            }));
+            return true;
+        } else {
+            showFeedback('❌ WebSocket 未连接，请重启插件', true);
+            return false;
+        }
+    }
+
+    function sendToPropertyInspector(payload) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                event: 'sendToPropertyInspector',
+                context: context,
+                payload: payload
+            }));
+            return true;
+        } else {
+            console.warn('[PI] WebSocket 未连接，无法发送');
+            return false;
+        }
+    }
+
+    // ====== 按钮事件 ======
+    // 保存设置
+    document.getElementById('saveBtn').addEventListener('click', function() {
+        const settings = getFormSettings();
+        if (!settings.beszel_url || !settings.beszel_email || !settings.beszel_password || !settings.beszel_agent) {
+            if (!confirm('⚠️ 部分配置为空，确定继续保存吗？')) {
+                return;
+            }
+        }
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                event: 'setSettings',
+                context: context,
+                payload: settings
+            }));
+            showFeedback('✅ 设置已发送');
+        } else {
+            showFeedback('❌ WebSocket 未连接', true);
+        }
+    });
+
+    // 刷新请求
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        const sent = sendToPlugin({ command: 'refresh' });
+        if (sent) {
+            showFeedback('🔄 刷新请求已发送');
+        }
+    });
+
+    // ====== 初始化 ======
+    console.log('[PI] NAS 监控配置面板已加载');
+    console.log('[PI] 等待 StreamDock 连接...');
+</script>
+</body>
+</html>
